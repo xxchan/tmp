@@ -1,0 +1,7 @@
+disallowed-methods = [
+    { path = "std::iter::Iterator::zip", reason = "Please use Itertools::zip_eq instead." },
+    { path = "futures_util::stream::select_all", reason = "Please use `risingwave_common::util::select_all` instead." },
+    # { path = "futures::stream::select_all", reason = "Please use `risingwave_common::util::select_all` instead." },
+
+    { path = "tmp::zip_eq" },
+]

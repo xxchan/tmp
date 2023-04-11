@@ -1,0 +1,5 @@
+[profile.default]
+retries = 5
+
+[profile.ci]
+retries = 0

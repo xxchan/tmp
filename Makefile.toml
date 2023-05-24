@@ -1,2 +1,39 @@
 [config]
-skip_core_tasks=true
+default_to_workspace = false
+skip_core_tasks = true
+skip_git_env_info = true
+skip_rust_env_info = false
+skip_crate_env_info = true
+
+[tasks.build-wasm]
+description = ""
+script = '''
+cargo build -p wasm-component --target=wasm32-unknown-unknown --target-dir=target/wasm
+
+wasm-tools component new ./target/wasm/wasm32-unknown-unknown/debug/wasm_component.wasm \
+    -o wasm_component.wasm  
+    # --adapt ./wasi_snapshot_preview1.wasm
+
+wasm-tools validate wasm_component.wasm --features component-model
+
+# wasm-tools component wit wasm_component.wasm 
+'''
+
+[tasks.build-wasi]
+description = ""
+script = '''
+cargo build -p wasm-component --target=wasm32-wasi --target-dir=target/wasm
+
+wasm-tools component new ./target/wasm/wasm32-wasi/debug/wasm_component.wasm \
+    -o wasm_component_wasi.wasm  \
+    --adapt ./wasi_snapshot_preview1.wasm
+
+# otherwise:
+# error: failed to encode a component from module
+# Caused by:
+#    0: module requires an import interface named `wasi_snapshot_preview1`
+
+wasm-tools validate wasm_component_wasi.wasm --features component-model
+
+# wasm-tools component wit wasm_component_wasi.wasm 
+'''

@@ -4,14 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["src/wasm"]
+members = ["src/wasm-component"]
 
 [profile.release]
 debug = true
 lto = 'thin'
 
 [profile.dev]
-lto = "thin"
 
 [dependencies]
 tokio = { version = "1", features = [
@@ -43,6 +42,14 @@ rdkafka = { version = "0.29.0", features = ["ssl"] }
 dotenv = "0.15.0"
 
 simd-json = "0.9"
+
+
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "5b93cdb", features = [
+    "component-model",
+] }
+# We need preview2-prototyping https://github.com/bytecodealliance/wasmtime/pull/6391
+wasmtime-wasi = { git = "https://github.com/bytecodealliance/wasmtime", rev = "5b93cdb" }
+async-trait = "0.1.68"
 
 [dev-dependencies]
 criterion = { version = "0.4" }

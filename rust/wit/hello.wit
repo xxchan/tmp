@@ -1,4 +1,6 @@
-default world hello-world {
+package xxchan:playground
+
+world hello-world {
     import name: func() -> string
     export greet: func() -> string
 }

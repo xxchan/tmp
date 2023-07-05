@@ -2,7 +2,7 @@ use wasmtime::component::*;
 use wasmtime::{Config, Engine, Store};
 
 bindgen!({
-    world: "hello",
+    world: "hello-world",
     // TODO: I don't understant very much why async is required (for wasi).
     // thread 'main' panicked at 'cannot use `func_wrap_async` without enabling async support in the config', /Users/xxchan/.cargo/git/checkouts/wasmtime-41807828cb3a7a7e/5b93cdb/crates/wasmtime/src/component/linker.rs:287:9
     async: true,

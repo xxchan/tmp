@@ -4,7 +4,7 @@ version = "0.1.114514"
 edition = "2021"
 
 [workspace]
-members = ["src/wasm-component", "src/utils"]
+members = ["src/wasm-component", "src/utils", "src/wasm-evil"]
 
 [profile.release]
 debug = 1
@@ -33,7 +33,7 @@ arrow-array = "40"
 arrow-flight = "40"
 arrow-schema = "40"
 arrow-select = "40"
-
+arrow-ipc = "40"
 
 env_logger = "0.10.0"
 futures = "0.3.27"
@@ -54,6 +54,8 @@ async-trait = "0.1.68"
 clap = { version = "4", features = ["cargo", "derive"] }
 
 futures-async-stream = "0.2.0"
+
+tonic = "0.9"
 
 [dev-dependencies]
 criterion = { version = "0.5" }

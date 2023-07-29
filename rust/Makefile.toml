@@ -37,3 +37,9 @@ wasm-tools validate wasm_component_wasi.wasm --features component-model
 
 # wasm-tools component wit wasm_component_wasi.wasm 
 '''
+
+[tasks.run]
+dependencies = ["build-wasm", "build-wasi"]
+script = '''
+cargo run --bin wit
+'''

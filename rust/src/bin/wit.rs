@@ -8,6 +8,13 @@ bindgen!({
     async: true,
 });
 
+bindgen!({
+    world: "byebye-world",
+    // TODO: I don't understant very much why async is required (for wasi).
+    // thread 'main' panicked at 'cannot use `func_wrap_async` without enabling async support in the config', /Users/xxchan/.cargo/git/checkouts/wasmtime-41807828cb3a7a7e/5b93cdb/crates/wasmtime/src/component/linker.rs:287:9
+    async: true,
+});
+
 struct MyState {
     name: String,
     wasi_ctx: wasmtime_wasi::preview2::WasiCtx,
@@ -78,7 +85,7 @@ async fn main() -> wasmtime::Result<()> {
     let mut store = Store::new(
         &engine,
         MyState {
-            name: "me".to_string(),
+            name: "smart🥵boy".to_string(),
             table,
             wasi_ctx,
         },
@@ -96,5 +103,13 @@ async fn main() -> wasmtime::Result<()> {
 
     let s = bindings_wasi.call_greet(&mut store).await?;
     println!("{}", s);
+
+    // ======================
+    // another component!
+
+    let (bindings, _) = ByebyeWorld::instantiate_async(&mut store, &component, &linker).await?;
+    let s = bindings.call_byebye(&mut store).await?;
+    println!("{}", s);
+
     Ok(())
 }

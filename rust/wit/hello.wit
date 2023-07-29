@@ -4,3 +4,18 @@ world hello-world {
     import name: func() -> string
     export greet: func() -> string
 }
+
+
+interface bye {
+    resource position {
+        constructor()
+        call: func() -> i32
+        free: static func(p)
+    }
+
+    call2: func(p: borrow<position>) -> i32
+}
+
+world byebye-world {
+    export bye
+}

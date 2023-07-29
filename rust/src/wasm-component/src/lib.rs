@@ -1,6 +1,24 @@
 wit_bindgen::generate!({
+    world: "hello-world",
     path:"../../wit"
 });
+
+mod another_component {
+    wit_bindgen::generate!({
+        world: "byebye-world",
+        path:"../../wit"
+    });
+
+    struct ByeBye;
+
+    impl ByebyeWorld for ByeBye {
+        fn byebye() -> wit_bindgen::rt::string::String {
+            "Bye bye".to_string()
+        }
+    }
+
+    export_byebye_world!(ByeBye);
+}
 
 // Define a custom type and implement the generated `Host` trait for it which
 // represents implementing all the necesssary exported interfaces for this

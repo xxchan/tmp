@@ -71,6 +71,14 @@ fn main() -> Result<()> {
             local.get 1
             call $add_stateful
             i32.add)
+
+        
+        (type (;0;) (func))
+        (func $sleep (type 0)
+            loop  ;; label = @1
+              br 0 (;@1;)
+            end)
+        (export "sleep" (func $sleep))
       )
     "#;
 
@@ -79,7 +87,9 @@ fn main() -> Result<()> {
     // Create our `store_fn` context and then compile a module and create an
     // instance from the compiled module all in one go.
     let mut store: Store<MyState> = instrument("create store", || {
-        let engine = Engine::default();
+        let mut config = Config::new();
+        let config = config.consume_fuel(true);
+        let engine = Engine::new(&config).unwrap();
 
         Store::new(
             &engine,
@@ -88,6 +98,7 @@ fn main() -> Result<()> {
             },
         )
     });
+    store.add_fuel(100).unwrap();
 
     let module = instrument("create module", || Module::new(store.engine(), wat))?;
 
@@ -260,6 +271,21 @@ fn main() -> Result<()> {
             });
 
             assert_eq!(store.data().my_secret_value, 44);
+        }
+
+        {
+            let sleep = instance.get_func(&mut store, "sleep").unwrap();
+            match sleep.call(&mut store, &[], &mut []) {
+                Ok(_) => todo!(),
+                Err(e) => {
+                    assert!(e.downcast_ref::<Trap>().is_some());
+                    let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
+                    println!(
+                        "sleep error: {}\nroot_cause: {} ({:?})",
+                        e, root_cause, root_cause
+                    );
+                }
+            }
         }
     }
 

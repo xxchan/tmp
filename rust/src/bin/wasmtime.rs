@@ -10,7 +10,7 @@
 #![allow(unused_mut)]
 #![allow(unused_imports)]
 
-use std::cell::RefCell;
+use std::{cell::RefCell, path::PathBuf};
 
 use wasmtime::*;
 
@@ -71,14 +71,7 @@ fn main() -> Result<()> {
             local.get 1
             call $add_stateful
             i32.add)
-
         
-        (type (;0;) (func))
-        (func $sleep (type 0)
-            loop  ;; label = @1
-              br 0 (;@1;)
-            end)
-        (export "sleep" (func $sleep))
       )
     "#;
 
@@ -88,7 +81,19 @@ fn main() -> Result<()> {
     // instance from the compiled module all in one go.
     let mut store: Store<MyState> = instrument("create store", || {
         let mut config = Config::new();
-        let config = config.consume_fuel(true);
+        let config = config
+            .debug_info(true)
+            .consume_fuel(true)
+            // .max_wasm_stack(65536 * 1000)
+            // .async_stack_size(65536 * 1000)
+            // below the size, the linear memory won't grow
+            // TODO: This IS NOT "max memory usage"!! (Don't quite understand it yet)
+            // It seems we should use `ResourceLimiter` via `store.limiter`
+            // see also https://github.com/bytecodealliance/wasmtime/issues/2273
+            .static_memory_maximum_size(65536 * 2048) 
+            // .static_memory_forced(true);
+            // .dynamic_memory_reserved_for_growth(1)
+            ;
         let engine = Engine::new(&config).unwrap();
 
         Store::new(
@@ -98,7 +103,7 @@ fn main() -> Result<()> {
             },
         )
     });
-    store.add_fuel(100).unwrap();
+    _ = store.add_fuel(100);
 
     let module = instrument("create module", || Module::new(store.engine(), wat))?;
 
@@ -138,6 +143,12 @@ fn main() -> Result<()> {
             &[add.into(), add_untyped.into(), add_stateful.into()],
         )
     })?;
+
+    let mut file = PathBuf::from(file!());
+    file.pop();
+    file.pop();
+    let module_evil = Module::from_file(store.engine(), file.join("wasm-evil/out.wat")).unwrap();
+    let instance_evil = Instance::new(&mut store, &module_evil, &[]).unwrap();
 
     sep();
 
@@ -272,21 +283,77 @@ fn main() -> Result<()> {
 
             assert_eq!(store.data().my_secret_value, 44);
         }
+    }
 
-        {
-            let sleep = instance.get_func(&mut store, "sleep").unwrap();
-            match sleep.call(&mut store, &[], &mut []) {
-                Ok(_) => todo!(),
-                Err(e) => {
-                    assert!(e.downcast_ref::<Trap>().is_some());
-                    let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
-                    println!(
-                        "sleep error: {}\nroot_cause: {} ({:?})",
-                        e, root_cause, root_cause
-                    );
-                }
+    {
+        sep();
+
+        let sleep = instance_evil.get_func(&mut store, "sleep").unwrap();
+        match sleep.call(&mut store, &[], &mut []) {
+            Ok(_) => todo!(),
+            Err(e) => {
+                assert!(e.downcast_ref::<Trap>().is_some());
+                let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
+                println!(
+                    "sleep error: {}\nroot_cause: {} ({:?})",
+                    e, root_cause, root_cause
+                );
             }
         }
+        sep();
+        _ = store.add_fuel(u64::MAX);
+
+        let memory = instance_evil
+            .get_memory(&mut store, "memory")
+            .ok_or(anyhow::format_err!("failed to find `memory` export"))?;
+        println!(
+            "memory: {:?}, data_size: 65536*{}",
+            memory.ty(&store),
+            memory.size(&store)
+        );
+
+        let mut out = vec![Val::I32(0)];
+
+        // let a_lot_of_stack_memory = instance_evil
+        //     .get_func(&mut store, "a_lot_of_stack_memory")
+        //     .unwrap();
+        // match a_lot_of_stack_memory.call(&mut store, &[], &mut out) {
+        //     Ok(_) => println!("a_lot_of_stack_memory: OK"),
+        //     Err(e) => {
+        //         assert!(e.downcast_ref::<Trap>().is_some());
+        //         let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
+        //         println!(
+        //             "a_lot_of_stack_memory error: {}\nroot_cause: {} ({:?})",
+        //             e, root_cause, root_cause
+        //         );
+        //     }
+        // }
+        // println!(
+        //     "memory: {:?}, data_size: {}",
+        //     memory.ty(&store),
+        //     memory.data_size(&store)
+        // );
+        // sep();
+
+        let a_lot_of_heap_memory = instance_evil
+            .get_func(&mut store, "a_lot_of_heap_memory")
+            .unwrap();
+        match a_lot_of_heap_memory.call(&mut store, &[], &mut out) {
+            Ok(_) => println!("a_lot_of_heap_memory: OK"),
+            Err(e) => {
+                assert!(e.downcast_ref::<Trap>().is_some());
+                let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
+                println!(
+                    "a_lot_of_stack_memory error: {}\nroot_cause: {} ({:?})",
+                    e, root_cause, root_cause
+                );
+            }
+        }
+        println!(
+            "memory: {:?}, data_size: 65536* {}",
+            memory.ty(&store),
+            memory.size(&store)
+        );
     }
 
     Ok(())

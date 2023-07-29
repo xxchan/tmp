@@ -45,7 +45,11 @@ pub fn instrument<T>(title: &str, f: impl FnOnce() -> T) -> T {
 {mem_sysinfo}used memory: {}
 ",
         humansize::format_size(
-            region.change().bytes_allocated - region.change().bytes_deallocated,
+            region
+                .change()
+                .bytes_allocated
+                .checked_sub(region.change().bytes_deallocated)
+                .unwrap_or(0),
             humansize::BINARY
         ),
     );

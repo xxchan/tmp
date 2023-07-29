@@ -52,7 +52,7 @@ impl FlightService for FlightServiceImpl {
         &self,
         _request: Request<FlightDescriptor>,
     ) -> Result<Response<FlightInfo>, Status> {
-        loop{}
+        loop {}
         let schema =
             arrow_schema::Schema::new(vec![Field::new("a", arrow_schema::DataType::Int32, false)]);
         let schema: SchemaResult = SchemaAsIpc::new(&schema, &IpcWriteOptions::default())

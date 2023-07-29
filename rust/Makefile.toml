@@ -43,3 +43,10 @@ dependencies = ["build-wasm", "build-wasi"]
 script = '''
 cargo run --bin wit
 '''
+
+[tasks.run-evil]
+script = '''
+cargo build -p wasm-evil --target wasm32-unknown-unknown
+wasm2wat target/wasm32-unknown-unknown/debug/wasm_evil.wasm  > src/wasm-evil/out.wat
+cargo run --bin wasmtime
+'''

@@ -13,14 +13,7 @@ debug = 1
 [dependencies]
 utils = { path = "src/utils" }
 
-tokio = { version = "1", features = [
-    "rt",
-    "rt-multi-thread",
-    "sync",
-    "macros",
-    "fs",
-    "process",
-] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "fs", "process", "full"] }
 tokio-postgres = { git = "https://github.com/sfackler/rust-postgres", rev = "97db777" }
 tokio-util = { version = "0.7", features = ["codec"] }
 anyhow = "1.0"
@@ -45,9 +38,9 @@ dotenv = "0.15.0"
 simd-json = "0.10"
 
 
-wasmtime = { version = "10", features = ["component-model"] }
+wasmtime = { version = "11", features = ["component-model"] }
 # We need preview2-prototyping https://github.com/bytecodealliance/wasmtime/pull/6391
-wasmtime-wasi = { version = "10"}
+wasmtime-wasi = { version = "11" }
 async-trait = "0.1.68"
 
 
@@ -56,6 +49,25 @@ clap = { version = "4", features = ["cargo", "derive"] }
 futures-async-stream = "0.2.0"
 
 tonic = "0.9"
+aws-sdk-s3 = { version = "0.28.0", default-features = false, features = [
+    "rt-tokio",
+    "native-tls",
+] }
+aws-config = { version = "0.55.1", default-features = false, features = [
+    "rt-tokio",
+    "native-tls",
+] }
+aws-credential-types = { version = "0.55.1", features = [
+    "hardcoded-credentials",
+] }
+hyper-tls = "0.5.0"
+aws-smithy-client = { version = "0.55.1", default-features = false, features = [
+    "rt-tokio",
+    "native-tls",
+] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
+
 
 [dev-dependencies]
 criterion = { version = "0.5" }

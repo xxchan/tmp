@@ -292,7 +292,7 @@ fn main() -> Result<()> {
         match sleep.call(&mut store, &[], &mut []) {
             Ok(_) => todo!(),
             Err(e) => {
-                assert!(e.downcast_ref::<Trap>().is_some());
+                assert!(e.downcast_ref::<wasmtime::Trap>().is_some());
                 let root_cause = e.root_cause().downcast_ref::<Trap>().unwrap();
                 println!(
                     "sleep error: {}\nroot_cause: {} ({:?})",

@@ -1,0 +1,32 @@
+❯ psqlrw -c "explain     create sink tpch_q14 as
+    select
+        100.00 * sum(case
+                when p_type like 'PROMO%'
+                        then l_extendedprice * (1 - l_discount)
+                else 0
+        end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+    from
+        lineitem,
+        part
+    where
+        l_partkey = p_partkey
+        and l_shipdate >= date '1995-09-01'
+        and l_shipdate < date '2099-09-01' + interval '1' month
+    with ( connector = 'blackhole', type = 'append-only', force_append_only = 'true');"
+Pager usage is off.
+                                                                                                                                            QUERY PLAN                                                                                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamSink { type: append-only, columns: [promo_revenue] }
+ └─StreamProject { exprs: [((100.00:Decimal * sum(sum($expr1))) / sum(sum($expr2))) as $expr3] }
+   └─StreamSimpleAgg { aggs: [sum(sum($expr1)), sum(sum($expr2)), count] }
+     └─StreamExchange { dist: Single }
+       └─StreamStatelessSimpleAgg { aggs: [sum($expr1), sum($expr2)] }
+         └─StreamProject { exprs: [Case(Like(part.p_type, 'PROMO%':Varchar), (lineitem.l_extendedprice * (1:Decimal - lineitem.l_discount)), 0:Decimal) as $expr1, (lineitem.l_extendedprice * (1:Decimal - lineitem.l_discount)) as $expr2, lineitem._row_id, part._row_id, lineitem.l_partkey] }
+           └─StreamHashJoin { type: Inner, predicate: lineitem.l_partkey = part.p_partkey }
+             ├─StreamExchange { dist: HashShard(lineitem.l_partkey) }
+             │  { exprs: [lineitem.l_partkey, lineitem.l_extendedprice, lineitem.l_discount, lineitem._row_id] }
+             │   └─StreamFilter { predicate: (lineitem.l_shipdate >= '1995-09-01':Date) AND (lineitem.l_shipdate < '2099-10-01 00:00:00':Timestamp) }
+             │     └─StreamTableScan { table: lineitem, columns: [l_partkey, l_extendedprice, l_discount, _row_id, l_shipdate] }
+             └─StreamExchange { dist: HashShard(part.p_partkey) }
+               └─StreamTableScan { table: part, columns: [p_partkey, p_type, _row_id] }
+(13 rows)

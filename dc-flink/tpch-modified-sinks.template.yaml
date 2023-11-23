@@ -1,0 +1,889 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tpch-modified-sinks-${BENCHMARK_JOB_NAME}
+  namespace: ${BENCHMARK_NAMESPACE}
+data:
+  q0.drop.sql: |
+    DROP TABLE tpch_q0;
+  q0.sql: |
+    CREATE TABLE tpch_q0 (
+      l_orderkey BIGINT,
+      l_partkey INTEGER,
+      l_suppkey INTEGER,
+      l_linenumber INTEGER,
+      l_quantity NUMERIC,
+      l_extendedprice NUMERIC,
+      l_discount NUMERIC,
+      l_tax NUMERIC,
+      l_returnflag VARCHAR,
+      l_linestatus VARCHAR,
+      l_shipdate DATE,
+      l_commitdate DATE,
+      l_receiptdate DATE,
+      l_shipinstruct VARCHAR,
+      l_shipmode VARCHAR,
+      l_comment VARCHAR
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q0
+    SELECT * from lineitem;
+  q1.drop.sql: |
+    DROP TABLE tpch_q1;
+  q1.sql: |
+    CREATE TABLE tpch_q1 (
+      l_returnflag  VARCHAR,
+      l_linestatus  VARCHAR,
+      sum_qty  NUMERIC,
+      sum_base_price  NUMERIC,
+      sum_disc_price  NUMERIC,
+      sum_charge  NUMERIC,
+      avg_qty  NUMERIC,
+      avg_price  NUMERIC,
+      avg_disc  NUMERIC,
+      count_order  BIGINT
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+    
+    INSERT INTO tpch_q1
+    select
+        l_returnflag,
+        l_linestatus,
+        sum(l_quantity) as sum_qty,
+        sum(l_extendedprice) as sum_base_price,
+        sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
+        sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
+        round(avg(l_quantity), 4) as avg_qty,
+        round(avg(l_extendedprice), 4) as avg_price,
+        round(avg(l_discount), 4) as avg_disc,
+        count(*) as count_order
+    from
+        lineitem
+    group by
+        l_returnflag,
+        l_linestatus;
+  q2.drop.sql: |
+    DROP TABLE tpch_q2;
+  q2.sql: |
+    CREATE TABLE tpch_q2 (
+        s_acctbal  NUMERIC,
+        s_name  VARCHAR,
+        n_name  VARCHAR,
+        p_partkey  INTEGER,
+        p_mfgr  VARCHAR,
+        s_address  VARCHAR,
+        s_phone  VARCHAR,
+        s_comment  VARCHAR
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q2
+    select
+        s_acctbal,
+        s_name,
+        n_name,
+        p_partkey,
+        p_mfgr,
+        s_address,
+        s_phone,
+        s_comment
+    from
+        part,
+        supplier,
+        partsupp,
+        nation,
+        region
+    where
+        p_partkey = ps_partkey
+        and s_suppkey = ps_suppkey
+        and s_nationkey = n_nationkey
+        and n_regionkey = r_regionkey
+        and ps_supplycost = (
+            select
+                min(ps_supplycost)
+            from
+                partsupp,
+                supplier,
+                nation,
+                region
+            where
+                p_partkey = ps_partkey
+                and s_suppkey = ps_suppkey
+                and s_nationkey = n_nationkey
+                and n_regionkey = r_regionkey
+        );
+  q3.drop.sql: |
+    DROP TABLE tpch_q3;
+  q3.sql: |
+    CREATE TABLE tpch_q3 (
+      l_orderkey  BIGINT,
+      revenue  DECIMAL,
+      o_orderdate  DATE,
+      o_shippriority  INTEGER
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q3
+    select
+      l_orderkey,
+      sum(l_extendedprice * (1 - l_discount)) as revenue,
+      o_orderdate,
+      o_shippriority
+    from
+      customer,
+      orders,
+      lineitem
+    where
+      c_custkey = o_custkey
+      and l_orderkey = o_orderkey
+      and o_orderdate < date '2099-03-29'
+      and l_shipdate > date '1995-03-29'
+    group by
+      l_orderkey,
+      o_orderdate,
+      o_shippriority;
+  q4.drop.sql: |
+    DROP TABLE tpch_q4;
+  q4.sql: |
+    CREATE TABLE tpch_q4 (
+      o_orderpriority  VARCHAR,
+      order_count BIGINT
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q4
+    select
+      o_orderpriority,
+      count(*) as order_count
+    from
+      orders
+    where
+      o_orderdate >= date '1997-07-01'
+      and o_orderdate < date '2099-07-01' + interval '3' month
+      and exists (
+        select
+          *
+        from
+          lineitem
+        where
+          l_orderkey = o_orderkey
+          and l_commitdate < l_receiptdate
+      )
+    group by
+      o_orderpriority
+    order by
+      o_orderpriority
+    LIMIT 1;
+  q5.drop.sql: |
+    DROP TABLE tpch_q5;
+  q5.sql: |
+    CREATE TABLE tpch_q5 (
+      n_name  VARCHAR,
+      revenue  NUMERIC
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q5
+    select
+    	n_name,
+    	sum(l_extendedprice * (1 - l_discount)) as revenue
+    from
+    	customer,
+    	orders,
+    	lineitem,
+    	supplier,
+    	nation,
+    	region
+    where
+    	c_custkey = o_custkey
+    	and l_orderkey = o_orderkey
+    	and l_suppkey = s_suppkey
+    	and c_nationkey = s_nationkey
+    	and s_nationkey = n_nationkey
+    	and n_regionkey = r_regionkey
+    group by
+    	n_name;
+  q6.drop.sql: |
+    DROP TABLE tpch_q6;
+  q6.sql: |
+    CREATE TABLE tpch_q6 (
+      revenue  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q6
+    select
+      sum(l_extendedprice * l_discount) as revenue
+    from
+      lineitem
+    where
+      l_shipdate >= date '1994-01-01'
+      and l_shipdate < date '2099-01-01' + interval '1' year
+      and l_discount between 0.08 - 0.08 and 0.08 + 1.01
+      and l_quantity < 24000;
+  q7.drop.sql: |
+    DROP TABLE tpch_q7;
+  q7.sql: |
+    CREATE TABLE tpch_q7 (
+      supp_nation  VARCHAR,
+      cust_nation  VARCHAR,
+      l_year  BIGINT,
+      revenue  NUMERIC
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q7
+    select
+      supp_nation,
+      cust_nation,
+      l_year,
+      sum(volume) as revenue
+    from
+      (
+        select
+          n1.n_name as supp_nation,
+          n2.n_name as cust_nation,
+          extract(year from l_shipdate) as l_year,
+          l_extendedprice * (1 - l_discount) as volume
+        from
+          supplier,
+          lineitem,
+          orders,
+          customer,
+          nation n1,
+          nation n2
+        where
+          s_suppkey = l_suppkey
+          and o_orderkey = l_orderkey
+          and c_custkey = o_custkey
+          and s_nationkey = n1.n_nationkey
+          and c_nationkey = n2.n_nationkey
+      ) as shipping
+    group by
+      supp_nation,
+      cust_nation,
+      l_year;
+  q8.drop.sql: |
+    DROP TABLE tpch_q8;
+  q8.sql: |
+    CREATE TABLE tpch_q8 (
+      o_year  BIGINT,
+      mkt_share  NUMERIC
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q8
+    select
+      o_year,
+      round(sum(case
+        when nation <> 'IRAN' then volume
+        else 0
+      end) / sum(volume), 6) as mkt_share
+    from
+      (
+        select
+          extract(year from o_orderdate) as o_year,
+          l_extendedprice * (1 - l_discount) as volume,
+          n2.n_name as nation
+        from
+          part,
+          supplier,
+          lineitem,
+          orders,
+          customer,
+          nation n1,
+          nation n2,
+          region
+        where
+          p_partkey = l_partkey
+          and s_suppkey = l_suppkey
+          and l_orderkey = o_orderkey
+          and o_custkey = c_custkey
+          and c_nationkey = n1.n_nationkey
+          and n1.n_regionkey = r_regionkey
+          and s_nationkey = n2.n_nationkey
+      ) as all_nations
+    group by
+      o_year;
+  q9.drop.sql: |
+    DROP TABLE tpch_q9;
+  q9.sql: |
+    CREATE TABLE tpch_q9 (
+      nation  VARCHAR,
+      o_year  BIGINT,
+      sum_profit  NUMERIC
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q9
+    select
+      nation,
+      o_year,
+      round(sum(amount), 2) as sum_profit
+    from
+      (
+        select
+          n_name as nation,
+          extract(year from o_orderdate) as o_year,
+          l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount
+        from
+          part,
+          supplier,
+          lineitem,
+          partsupp,
+          orders,
+          nation
+        where
+          s_suppkey = l_suppkey
+          and ps_suppkey = l_suppkey
+          and ps_partkey = l_partkey
+          and p_partkey = l_partkey
+          and o_orderkey = l_orderkey
+          and s_nationkey = n_nationkey
+      ) as profit
+    group by
+      nation,
+      o_year;
+  q10.drop.sql: |
+    DROP TABLE tpch_q10;
+  q10.sql: |
+    CREATE TABLE tpch_q10 (
+      c_custkey  INTEGER,
+      c_name  VARCHAR,
+      revenue  DECIMAL, 
+      c_acctbal  DECIMAL,
+      n_name  VARCHAR,
+      c_address  VARCHAR,
+      c_phone  VARCHAR,
+      c_comment  VARCHAR
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q10
+    select
+      c_custkey,
+      c_name,
+      sum(l_extendedprice * (1.00 - l_discount)) as revenue,
+      c_acctbal,
+      n_name,
+      c_address,
+      c_phone,
+      c_comment
+    from
+      customer,
+      orders,
+      lineitem,
+      nation
+    where
+      c_custkey = o_custkey
+      and l_orderkey = o_orderkey
+      and o_orderdate >= date '1994-01-01'
+      and o_orderdate < date '2099-01-01' + interval '3' month
+      -- and l_returnflag = 'R'
+      and c_nationkey = n_nationkey
+    group by
+      c_custkey,
+      c_name,
+      c_acctbal,
+      c_phone,
+      n_name,
+      c_address,
+      c_comment
+    order by
+      revenue desc
+    LIMIT 20;
+  q11.drop.sql: |
+    DROP TABLE tpch_q11;
+  q11.sql: |
+    CREATE TABLE tpch_q11 (
+      ps_partkey  INTEGER,
+      cost  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q11
+    select
+      ps_partkey,
+      sum(ps_supplycost * ps_availqty) as cost
+    from
+      partsupp,
+      supplier,
+      nation
+    where
+      ps_suppkey = s_suppkey
+      and s_nationkey = n_nationkey
+      -- and n_name = 'ARGENTINA'
+    group by
+      ps_partkey
+    having
+      sum(ps_supplycost * ps_availqty) > (
+        select
+          sum(ps_supplycost * ps_availqty) * 0.0000000001
+        from
+          partsupp,
+          supplier,
+          nation
+        where
+          ps_suppkey = s_suppkey
+          and s_nationkey = n_nationkey
+          -- and n_name = 'ARGENTINA'
+      )
+    order by
+      cost desc
+    LIMIT 1;
+  q12.drop.sql: |
+    DROP TABLE tpch_q12;
+  q12.sql: |
+    CREATE TABLE tpch_q12 (
+      l_shipmode  VARCHAR,
+      high_line_count  INTEGER,
+      low_line_count  INTEGER
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q12
+    select
+        l_shipmode,
+        sum(case
+            when o_orderpriority = '1-URGENT'
+                or o_orderpriority = '2-HIGH'
+                then 1
+            else 0
+        end) as high_line_count,
+        sum(case
+            when o_orderpriority <> '1-URGENT'
+                and o_orderpriority <> '2-HIGH'
+                then 1
+            else 0
+        end) as low_line_count
+    from
+        orders,
+        lineitem
+    where
+        o_orderkey = l_orderkey
+        -- and l_shipmode in ('FOB', 'SHIP')
+        and l_commitdate < l_receiptdate + interval '1' year
+        and l_shipdate < l_commitdate + interval '1' year
+        and l_receiptdate >= date '1994-01-01'
+        and l_receiptdate < date '2099-01-01' + interval '1' year
+    group by
+        l_shipmode
+    order by
+        l_shipmode
+    LIMIT 1;
+  q13.drop.sql: |
+    DROP TABLE tpch_q13;
+  q13.sql: |
+    CREATE TABLE tpch_q13 (
+      c_count  BIGINT,
+      custdist  BIGINT
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q13
+    select
+      c_count,
+      count(*) as custdist
+    from
+      (
+        select
+          c_custkey,
+          count(o_orderkey) as c_count
+        from
+          customer left outer join orders on
+            c_custkey = o_custkey
+            -- and o_comment not like '%:1%:2%'
+        group by
+          c_custkey
+      ) as c_orders (c_custkey, c_count)
+    group by
+      c_count
+    order by
+      custdist desc,
+      c_count desc
+    LIMIT 1;
+  q14.drop.sql: |
+    DROP TABLE tpch_q14;
+  q14.sql: |
+    CREATE TABLE tpch_q14 (
+      promo_revenue  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q14
+    select
+      100.00 * sum(case
+        when p_type like 'PROMO%'
+          then l_extendedprice * (1 - l_discount)
+        else 0
+      end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+    from
+      lineitem,
+      part
+    where
+      l_partkey = p_partkey
+      and l_shipdate >= date '1995-09-01'
+      and l_shipdate < date '2099-09-01' + interval '1' month;
+  q15.drop.sql: |
+    DROP TABLE tpch_q15;
+  q15.sql: |
+    CREATE TABLE tpch_q15 (
+      s_suppkey  INTEGER,
+      s_name  VARCHAR,
+      s_address  VARCHAR,
+      s_phone  VARCHAR,
+      total_revenue  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q15
+    with revenue0 (supplier_no, total_revenue) as (
+      select
+        l_suppkey,
+        sum(l_extendedprice * (1 - l_discount))
+      from
+        lineitem
+      where
+        l_shipdate >= date '1993-01-01'
+        and l_shipdate < date '2099-01-01' + interval '3' month
+      group by
+        l_suppkey
+    )
+    select
+      s_suppkey,
+      s_name,
+      s_address,
+      s_phone,
+      total_revenue
+    from
+      supplier,
+      revenue0
+    where
+      s_suppkey = supplier_no
+      and total_revenue = (
+        select
+          max(total_revenue)
+        from
+          revenue0
+      )
+    order by
+      s_suppkey
+    LIMIT 1;
+  q16.drop.sql: |
+    DROP TABLE tpch_q16;
+  q16.sql: |
+    CREATE TABLE tpch_q16 (
+      p_brand  VARCHAR,
+      p_type  VARCHAR,
+      p_size  INTEGER,
+      supplier_cnt  BIGINT
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q16
+    select
+      p_brand,
+      p_type,
+      p_size,
+      count(distinct ps_suppkey) as supplier_cnt
+    from
+      partsupp,
+      part
+    where
+      p_partkey = ps_partkey
+      -- and p_brand <> 'Brand#45'
+      -- and p_type not like 'SMALL PLATED%'
+      -- and p_size in (19, 17, 16, 23, 10, 4, 38, 11)
+      and ps_suppkey not in (
+        select
+          s_suppkey
+        from
+          supplier
+        where
+          s_comment like '%Customer%Complaints%'
+      )
+    group by
+      p_brand,
+      p_type,
+      p_size
+    order by
+      supplier_cnt desc,
+      p_brand,
+      p_type,
+      p_size
+    LIMIT 1;
+  q17.drop.sql: |
+    DROP TABLE tpch_q17;
+  q17.sql: |
+    CREATE TABLE tpch_q17 (
+      avg_yearly  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q17
+    select
+      sum(l_extendedprice) / 7.0 as avg_yearly
+    from
+      lineitem,
+      part
+    where
+      p_partkey = l_partkey
+      -- and p_brand = 'Brand#13'
+      -- and p_container = 'JUMBO PKG'
+      and l_quantity < (
+        select
+          20.2 * avg(l_quantity)
+        from
+          lineitem
+        where
+          l_partkey = p_partkey
+      );
+  q18.drop.sql: |
+    DROP TABLE tpch_q18;
+  q18.sql: |
+    CREATE TABLE tpch_q18 (
+      c_name  VARCHAR,
+      c_custkey  INTEGER,
+      o_orderkey  BIGINT,
+      o_orderdate  DATE,
+      o_totalprice  DECIMAL,
+      quantity  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q18
+    select
+      c_name,
+      c_custkey,
+      o_orderkey,
+      o_orderdate,
+      o_totalprice,
+      sum(l_quantity) quantity
+    from
+      customer,
+      orders,
+      lineitem
+    where
+      o_orderkey in (
+        select
+          l_orderkey
+        from
+          lineitem
+        group by
+          l_orderkey
+        having
+          sum(l_quantity) > 0
+      )
+      and c_custkey = o_custkey
+      and o_orderkey = l_orderkey
+    group by
+      c_name,
+      c_custkey,
+      o_orderkey,
+      o_orderdate,
+      o_totalprice
+    order by
+      o_totalprice desc,
+      o_orderdate
+    LIMIT 100;
+  q19.drop.sql: |
+    DROP TABLE tpch_q19;
+  q19.sql: |
+    CREATE TABLE tpch_q19 (
+      revenue  DECIMAL
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q19
+    select
+      sum(l_extendedprice* (1 - l_discount)) as revenue
+    from
+      lineitem,
+      part
+    where
+      (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#52'
+        and p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+        and l_quantity >= 1 and l_quantity <= 11
+        and p_size between 1 and 5
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+      )
+      or
+      (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#24'
+        and p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+        and l_quantity >= 30 and l_quantity <= 40
+        and p_size between 1 and 10
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+      )
+      or
+      (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#32'
+        and p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+        and l_quantity >= 10 and l_quantity <= 20
+        and p_size between 1 and 15
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+      );
+  q20.drop.sql: |
+    DROP TABLE tpch_q20;
+  q20.sql: |
+    CREATE TABLE tpch_q20 (
+      s_name  VARCHAR,
+      s_address  VARCHAR
+    ) WITH (
+        'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q20
+    select
+      s_name,
+      s_address
+    from
+      supplier,
+      nation
+    where
+      s_suppkey in (
+        select
+          ps_suppkey
+        from
+          partsupp
+        where
+          ps_partkey in (
+            select
+              p_partkey
+            from
+              part
+          )
+          and ps_availqty > (
+            select
+              0.005 * sum(l_quantity)
+            from
+              lineitem
+            where
+              l_partkey = ps_partkey
+              and l_suppkey = ps_suppkey
+          )
+      )
+      and s_nationkey = n_nationkey;
+  q21.drop.sql: |
+    DROP TABLE tpch_q21;
+  q21.sql: |
+    CREATE TABLE tpch_q21 (
+        s_name  VARCHAR,
+        numwait  BIGINT
+    ) WITH (
+        'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q21
+    select
+      s_name,
+      count(*) as numwait
+    from
+      supplier,
+      lineitem l1,
+      orders,
+      nation
+    where
+      s_suppkey = l1.l_suppkey
+      and o_orderkey = l1.l_orderkey
+      and l1.l_receiptdate + interval '1' year > l1.l_commitdate
+      and exists (
+        select
+          *
+        from
+          lineitem l2
+        where
+          l2.l_orderkey = l1.l_orderkey
+          and l2.l_suppkey <> l1.l_suppkey
+      )
+      and not exists (
+        select
+          *
+        from
+          lineitem l3
+        where
+          l3.l_orderkey = l1.l_orderkey
+          and l3.l_suppkey <> l1.l_suppkey
+          and l3.l_receiptdate + interval '1' year > l3.l_commitdate
+      )
+      and s_nationkey = n_nationkey
+    group by
+      s_name;
+  q22.drop.sql: |
+    DROP TABLE tpch_q22;
+  q22.sql: |
+    CREATE TABLE tpch_q22 (
+     cntrycode  VARCHAR,
+     numcust  BIGINT,
+     totacctbal  NUMERIC
+    ) WITH (
+      'connector' = 'blackhole'
+    );
+
+    INSERT INTO tpch_q22
+    select
+      cntrycode,
+      count(*) as numcust,
+      sum(c_acctbal) as totacctbal
+    from
+      (
+        select
+          substring(c_phone from 1 for 2) as cntrycode,
+          c_acctbal
+        from
+          customer
+        where
+          -- substring(c_phone from 1 for 2) in
+          --  ('30', '24', '31', '38', '25', '34', '37') and
+          c_acctbal > (
+            select
+              avg(c_acctbal)
+            from
+              customer
+            where
+              c_acctbal > 0
+              -- and substring(c_phone from 1 for 2) in
+              --  ('30', '24', '31', '38', '25', '34', '37')
+          )
+          and not exists (
+            select
+              *
+            from
+              orders
+            where
+              o_custkey = c_custkey
+          )
+      ) as custsale
+    group by
+      cntrycode
+    order by
+      cntrycode
+    LIMIT 1;

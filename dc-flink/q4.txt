@@ -1,0 +1,66 @@
+Flink SQL> explain INSERT INTO tpch_q4
+>     select
+>       o_orderpriority,
+>       count(*) as order_count
+>     from
+>       orders
+>     where
+>       o_orderdate >= date '1997-07-01'
+>       and o_orderdate < date '2099-07-01' + interval '3' month
+>       and exists (
+>         select
+>           *
+>         from
+>           lineitem
+>         where
+>           l_orderkey = o_orderkey
+>           and l_commitdate < l_receiptdate
+>       )
+>     group by
+>       o_orderpriority
+>     order by
+>       o_orderpriority
+>     LIMIT 1;
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.tpch_q4], fields=[o_orderpriority, order_count])
++- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[1])
+   +- LogicalAggregate(group=[{0}], order_count=[COUNT()])
+      +- LogicalProject(o_orderpriority=[$5])
+         +- LogicalFilter(condition=[AND(>=($4, 1997-07-01), <($4, +(2099-07-01, 3:INTERVAL MONTH)), EXISTS({
+LogicalFilter(condition=[AND(=($0, $cor0.o_orderkey), <($11, $12))])
+  LogicalTableScan(table=[[default_catalog, default_database, lineitem]])
+}))], variablesSet=[[$cor0]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.tpch_q4], fields=[o_orderpriority, order_count])
++- SortLimit(orderBy=[o_orderpriority ASC], offset=[0], fetch=[1], strategy=[UpdateFastStrategy[0]])
+   +- Exchange(distribution=[single])
+      +- GroupAggregate(groupBy=[o_orderpriority], select=[o_orderpriority, COUNT(*) AS order_count])
+         +- Exchange(distribution=[hash[o_orderpriority]])
+            +- Calc(select=[o_orderpriority])
+               +- Join(joinType=[LeftSemiJoin], where=[=(l_orderkey, o_orderkey)], select=[o_orderkey, o_orderpriority], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                  :- Exchange(distribution=[hash[o_orderkey]])
+                  :  +- Calc(select=[o_orderkey, o_orderpriority], where=[SEARCH(o_orderdate, Sarg[[1997-07-01..2099-10-01)])])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+                  +- Exchange(distribution=[hash[l_orderkey]])
+                     +- Calc(select=[l_orderkey], where=[<(l_commitdate, l_receiptdate)])
+                        +- TableSourceScan(table=[[default_catalog, default_database, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.tpch_q4], fields=[o_orderpriority, order_count])
++- SortLimit(orderBy=[o_orderpriority ASC], offset=[0], fetch=[1], strategy=[UpdateFastStrategy[0]])
+   +- Exchange(distribution=[single])
+      +- GroupAggregate(groupBy=[o_orderpriority], select=[o_orderpriority, COUNT(*) AS order_count])
+         +- Exchange(distribution=[hash[o_orderpriority]])
+            +- Calc(select=[o_orderpriority])
+               +- Join(joinType=[LeftSemiJoin], where=[(l_orderkey = o_orderkey)], select=[o_orderkey, o_orderpriority], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+                  :- Exchange(distribution=[hash[o_orderkey]])
+                  :  +- Calc(select=[o_orderkey, o_orderpriority], where=[SEARCH(o_orderdate, Sarg[[1997-07-01..2099-10-01)])])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+                  +- Exchange(distribution=[hash[l_orderkey]])
+                     +- Calc(select=[l_orderkey], where=[(l_commitdate < l_receiptdate)])
+                        +- TableSourceScan(table=[[default_catalog, default_database, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+
+
+

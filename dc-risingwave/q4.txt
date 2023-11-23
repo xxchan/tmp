@@ -1,0 +1,44 @@
+dev=> explain create sink tpch_q4 as
+    select
+        o_orderpriority,
+        count(*) as order_count
+    from
+        orders
+    where
+        o_orderdate >= date '1997-07-01'
+        and o_orderdate < date '2099-07-01' + interval '3' month
+        and exists (
+                select
+                        *
+                from
+                        lineitem
+                where
+                        l_orderkey = o_orderkey
+                        and l_commitdate < l_receiptdate
+        )
+    group by
+        o_orderpriority
+    order by
+        o_orderpriority
+    limit 1
+    with ( connector = 'blackhole', type = 'append-only', force_append_only = 'true');
+                                                                       QUERY PLAN                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamSink { type: append-only, columns: [o_orderpriority, order_count] }
+ └─StreamProject { exprs: [orders.o_orderpriority, count] }
+   └─StreamTopN { order: [orders.o_orderpriority ASC], limit: 1, offset: 0 }
+     └─StreamExchange { dist: Single }
+       └─StreamGroupTopN { order: [orders.o_orderpriority ASC], limit: 1, offset: 0, group_key: [$expr1] }
+         └─StreamProject { exprs: [orders.o_orderpriority, count, Vnode(orders.o_orderpriority) as $expr1] }
+           └─StreamHashAgg { group_key: [orders.o_orderpriority], aggs: [count] }
+             └─StreamExchange { dist: HashShard(orders.o_orderpriority) }
+               └─StreamHashJoin { type: LeftSemi, predicate: orders.o_orderkey = lineitem.l_orderkey }
+                 ├─StreamExchange { dist: HashShard(orders.o_orderkey) }
+                 │ └─StreamProject { exprs: [orders.o_orderkey, orders.o_orderpriority, orders._row_id] }
+                 │   └─StreamFilter { predicate: (orders.o_orderdate >= '1997-07-01':Date) AND (orders.o_orderdate < '2099-10-01 00:00:00':Timestamp) }
+                 │     └─StreamTableScan { table: orders, columns: [o_orderkey, o_orderpriority, _row_id, o_orderdate] }
+                 └─StreamExchange { dist: HashShard(lineitem.l_orderkey) }
+                   └─StreamProject { exprs: [lineitem.l_orderkey, lineitem._row_id] }
+                     └─StreamFilter { predicate: (lineitem.l_commitdate < lineitem.l_receiptdate) }
+                       └─StreamTableScan { table: lineitem, columns: [l_orderkey, _row_id, l_commitdate, l_receiptdate] }
+(17 rows)

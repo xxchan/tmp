@@ -99,79 +99,6 @@ where
     deserializer.deserialize_map(FieldsVisitor { nested: true })
 }
 
-// test deny_unknown_fields and flatten
-
-#[derive(Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-struct Foo1 {
-    #[serde(flatten)]
-    flatten: HashMap<String, String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct Foo2 {
-    #[serde(flatten)]
-    flatten: HashMap<String, String>,
-
-    #[serde(flatten)]
-    flatten2: HashMap<String, String>,
-
-    #[serde(flatten)]
-    flatten3: FooInner,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-struct FooInner {
-    a: Option<String>,
-    b: Option<String>,
-}
-
-#[test]
-fn test_1() {
-    let json = r#"{
-       "a": "b", "c":"d"
-    }"#;
-
-    let foo: Result<Foo1, _> = serde_json::from_str(json);
-    let foo2: Result<Foo2, _> = serde_json::from_str(json);
-
-    // https://serde.rs/container-attrs.html#deny_unknown_fields
-    // > Note: this attribute is not supported in combination with flatten, neither on the outer struct nor on the flattened field.
-
-    // With outer `deny_unknown_fields`, flatten is ignored
-    expect![[r#"
-        Err(
-            Error("unknown field `a`", line: 3, column: 5),
-        )
-    "#]]
-    .assert_debug_eq(&foo);
-
-    // When there are multiple flatten, all of them will be used.
-    // Also, with outer `flatten``, the inner `deny_unknown_fields` is ignored.
-    expect![[r#"
-        Ok(
-            Foo2 {
-                flatten: {
-                    "c": "d",
-                    "a": "b",
-                },
-                flatten2: {
-                    "a": "b",
-                    "c": "d",
-                },
-                flatten3: FooInner {
-                    a: Some(
-                        "b",
-                    ),
-                    b: None,
-                },
-            },
-        )
-    "#]]
-    .assert_debug_eq(&foo2);
-}
-
 fn main() {
     let json = r#"{
         "a": 1,
@@ -185,4 +112,249 @@ fn main() {
     let foo: Foo = serde_json::from_str(json).unwrap();
 
     println!("{:#?}", foo);
+}
+
+mod unkown_fields_and_flatten {
+    use super::*;
+
+    // test deny_unknown_fields and flatten
+
+    // https://serde.rs/container-attrs.html#deny_unknown_fields
+    // > Note: this attribute is not supported in combination with flatten, neither on the outer struct nor on the flattened field.
+
+    // https://github.com/serde-rs/serde/issues/1547#issuecomment-705744778
+    // The cause for this is that the way #[serde(flatten)] works is that it deserializes the container as a map instead of a struct, and holds a map of unknown entries as it goes through. Then at the end it uses the field's Deserialize implementation to deserialize from said map.
+    // (nested flatten doesn't work. Guess this is because nested flatten will make a struct deserialize as a map.)
+
+    // Conclusion: deny_unknown_fields doesn't work well with flatten map, but can work with flatten struct.
+
+    #[test]
+    fn test_outer_deny() {
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct FlattenMap {
+            #[serde(flatten)]
+            flatten: HashMap<String, String>,
+        }
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct FlattenStruct {
+            #[serde(flatten)]
+            flatten_struct: Inner,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct FlattenBoth {
+            #[serde(flatten)]
+            flatten: HashMap<String, String>,
+            #[serde(flatten)]
+            flatten_struct: Inner,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct FlattenBoth2 {
+            #[serde(flatten)]
+            flatten_struct: Inner,
+            #[serde(flatten)]
+            flatten: HashMap<String, String>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        struct Inner {
+            a: Option<String>,
+            b: Option<String>,
+        }
+
+        let json = r#"{
+        "a": "b"
+     }"#;
+        let foo: Result<FlattenMap, _> = serde_json::from_str(json);
+        let foo1: Result<FlattenStruct, _> = serde_json::from_str(json);
+
+        let foo2: Result<FlattenBoth, _> = serde_json::from_str(json);
+        let foo3: Result<FlattenBoth2, _> = serde_json::from_str(json);
+
+        // with `deny_unknown_fields`, we can't flatten ONLY a map
+        expect![[r#"
+        Err(
+            Error("unknown field `a`", line: 3, column: 6),
+        )
+    "#]]
+        .assert_debug_eq(&foo);
+
+        // but can flatten a struct!
+        expect![[r#"
+        Ok(
+            FlattenStruct {
+                flatten_struct: Inner {
+                    a: Some(
+                        "b",
+                    ),
+                    b: None,
+                },
+            },
+        )
+    "#]]
+        .assert_debug_eq(&foo1);
+        // unknown fields can be denied.
+        let foo11: Result<FlattenStruct, _> = serde_json::from_str(r#"{ "a": "b", "unknown":1 }"#);
+        expect_test::expect![[r#"
+        Err(
+            Error("unknown field `unknown`", line: 1, column: 25),
+        )
+    "#]]
+        .assert_debug_eq(&foo11);
+
+        // When both struct and map are flattened, the map also works...
+        expect![[r#"
+        Ok(
+            FlattenBoth {
+                flatten: {
+                    "a": "b",
+                },
+                flatten_struct: Inner {
+                    a: Some(
+                        "b",
+                    ),
+                    b: None,
+                },
+            },
+        )
+    "#]]
+        .assert_debug_eq(&foo2);
+
+        let foo21: Result<FlattenBoth, _> = serde_json::from_str(r#"{ "a": "b", "unknown":1 }"#);
+        expect_test::expect![[r#"
+        Err(
+            Error("invalid type: integer `1`, expected a string", line: 1, column: 25),
+        )
+    "#]]
+        .assert_debug_eq(&foo21);
+        // This error is a little funny, since even if we use string, it will still fail.
+        let foo22: Result<FlattenBoth, _> = serde_json::from_str(r#"{ "a": "b", "unknown":"1" }"#);
+        expect_test::expect![[r#"
+        Err(
+            Error("unknown field `unknown`", line: 1, column: 27),
+        )
+    "#]]
+        .assert_debug_eq(&foo22);
+
+        // If the struct goes first, it will consume some fields.
+        expect![[r#"
+        Ok(
+            FlattenBoth2 {
+                flatten_struct: Inner {
+                    a: Some(
+                        "b",
+                    ),
+                    b: None,
+                },
+                flatten: {},
+            },
+        )
+    "#]]
+        .assert_debug_eq(&foo3);
+    }
+
+    #[test]
+    fn test_inner_deny() {
+        // no outer deny now.
+        #[derive(Deserialize, Debug)]
+        struct FlattenStruct {
+            #[serde(flatten)]
+            flatten_struct: Inner,
+        }
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            a: Option<String>,
+            b: Option<String>,
+        }
+
+        let json = r#"{
+        "a": "b", "unknown":1
+     }"#;
+        let foo: Result<FlattenStruct, _> = serde_json::from_str(json);
+        // unknown fields cannot be denied.
+        // I think this is because `deserialize_struct` is called, and required fields are passed. Other fields are left for the outer struct to consume.
+        expect_test::expect![[r#"
+            Ok(
+                FlattenStruct {
+                    flatten_struct: Inner {
+                        a: Some(
+                            "b",
+                        ),
+                        b: None,
+                    },
+                },
+            )
+        "#]]
+        .assert_debug_eq(&foo);
+    }
+
+    #[test]
+    fn test_multiple_flatten() {
+        #[derive(Deserialize, Debug)]
+        struct Foo {
+            /// struct will "consume" the used fields!
+            #[serde(flatten)]
+            flatten_struct: Inner1,
+
+            /// map will keep the unknown fields!
+            #[serde(flatten)]
+            flatten_map1: HashMap<String, String>,
+
+            #[serde(flatten)]
+            flatten_map2: HashMap<String, String>,
+
+            #[serde(flatten)]
+            flatten_struct2: Inner2,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct Inner1 {
+            a: Option<String>,
+            b: Option<String>,
+        }
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct Inner2 {
+            c: Option<String>,
+        }
+
+        let json = r#"{
+        "a": "b", "c":"d"
+     }"#;
+        let foo2: Result<Foo, _> = serde_json::from_str(json);
+
+        // When there are multiple flatten, all of them will be used.
+        // Also, with outer `flatten``, the inner `deny_unknown_fields` is ignored.
+        expect![[r#"
+        Ok(
+            Foo {
+                flatten_struct: Inner1 {
+                    a: Some(
+                        "b",
+                    ),
+                    b: None,
+                },
+                flatten_map1: {
+                    "c": "d",
+                },
+                flatten_map2: {
+                    "c": "d",
+                },
+                flatten_struct2: Inner2 {
+                    c: Some(
+                        "d",
+                    ),
+                },
+            },
+        )
+    "#]]
+        .assert_debug_eq(&foo2);
+    }
 }

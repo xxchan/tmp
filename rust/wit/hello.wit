@@ -7,13 +7,7 @@ world hello-world {
 
 
 interface bye {
-    resource position {
-        constructor()
-        call: func() -> i32
-        free: static func(p)
-    }
-
-    call2: func(p: borrow<position>) -> i32
+   
 }
 
 world byebye-world {

@@ -1,0 +1,41 @@
+[package]
+name = "aws_sdk"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aws-config = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "rt-tokio",
+    "rustls",
+] }
+aws-credential-types = { version = "1", default-features = false, features = [
+    "hardcoded-credentials",
+] }
+aws-sdk-kinesis = { version = "1", default-features = false, features = [
+    "rt-tokio",
+    "rustls",
+] }
+# aws-sdk-s3 = { version = "1", default-features = false, features = [
+#   "rt-tokio",
+#   "rustls",
+# ] }
+# aws-sdk-ec2 = { version = "1", default-features = false, features = [
+#   "rt-tokio",
+#   "rustls",
+# ] }
+aws-sdk-sqs = { version = "1", default-features = false, features = [
+    "rt-tokio",
+    "rustls",
+] }
+aws-smithy-http = "0.60"
+aws-smithy-runtime-api = "1"
+aws-smithy-runtime = "1"
+aws-smithy-types = { version = "1", default-features = false, features = [
+    "hyper-0-14-x",
+] }
+aws-endpoint = "0.60"
+aws-types = "1"
+tokio = { version = "1", features = ["full"] }

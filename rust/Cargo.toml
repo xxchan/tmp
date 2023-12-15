@@ -13,15 +13,12 @@ debug = 1
 [dependencies]
 anyhow = "1.0"
 
-# arrow-array = "40"
-# arrow-flight = "40"
-# arrow-ipc = "40"
-# arrow-schema = "40"
-# arrow-select = "40"
+arrow-array = "40"
+arrow-flight = "40"
+arrow-ipc = "40"
+arrow-schema = "40"
+arrow-select = "40"
 
-# wasmtime = { version = "11", features = ["component-model"] }
-# # We need preview2-prototyping https://github.com/bytecodealliance/wasmtime/pull/6391
-# wasmtime-wasi = { version = "11" }
 async-trait = "0.1.68"
 
 clap = { version = "4", features = ["cargo", "derive"] }
@@ -41,6 +38,7 @@ rsa = "0.8.2"
 serde = { version = "1.0.193", features = ["derive", "alloc"] }
 serde-value = "0.7.0"
 serde_json = "1.0.108"
+serde_with = { version = "3.4.0", features = ["json"] }
 
 simd-json = "0.10"
 
@@ -57,22 +55,6 @@ tokio-postgres = { git = "https://github.com/sfackler/rust-postgres", rev = "97d
 tokio-util = { version = "0.7", features = ["codec"] }
 
 # tonic = "0.9"
-# aws-sdk-s3 = { version = "0.28.0", default-features = false, features = [
-#     "rt-tokio",
-#     "native-tls",
-# ] }
-# aws-config = { version = "0.55.1", default-features = false, features = [
-#     "rt-tokio",
-#     "native-tls",
-# ] }
-# aws-credential-types = { version = "0.55.1", features = [
-#     "hardcoded-credentials",
-# ] }
-# hyper-tls = "0.5.0"
-# aws-smithy-client = { version = "0.55.1", default-features = false, features = [
-#     "rt-tokio",
-#     "native-tls",
-# ] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 utils = { path = "src/utils" }
@@ -84,6 +66,10 @@ criterion = { version = "0.5" }
 name = "a"
 harness = false
 # simd-json = { path = "../simd-json" }
+
+[[bench]]
+name = "async"
+harness = false
 
 [workspace.lints.rust]
 dead_code = "allow"

@@ -9,15 +9,15 @@ mod another_component {
         path:"../../wit"
     });
 
-    struct ByeBye;
+    // struct ByeBye;
 
-    impl ByebyeWorld for ByeBye {
-        fn byebye() -> wit_bindgen::rt::string::String {
-            "Bye bye".to_string()
-        }
-    }
+    // impl ByebyeWorld for ByeBye {
+    //     fn byebye() -> wit_bindgen::rt::string::String {
+    //         "Bye bye".to_string()
+    //     }
+    // }
 
-    export_byebye_world!(ByeBye);
+    // export_byebye_world!(ByeBye);
 }
 
 // Define a custom type and implement the generated `Host` trait for it which

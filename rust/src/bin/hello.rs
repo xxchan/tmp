@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use educe::Educe;
 use futures::{
     stream::{FuturesOrdered, FuturesUnordered},
     Future, StreamExt,
@@ -27,8 +28,33 @@ async fn join_parallel<T: Send + 'static>(
         .collect()
 }
 
+#[derive(Educe, Debug, Eq)]
+#[educe(Default)]
+pub struct S {
+    #[educe(Default(expression = u32::MAX - 1))]
+    a: u32,
+}
+
+struct A;
+
+struct B {
+    a: A,
+}
+
+trait D {}
+
+fn assert_impl<T: D>() {}
+
 #[tokio::main]
 async fn main() {
+    assert_impl::<A>();
+
+    println!(
+        "S::default() : {:?}, u32::MAX - 1: {}",
+        S::default(),
+        u32::MAX - 1
+    );
+
     let t = std::time::Instant::now();
     async {
         foo().await;
@@ -72,5 +98,3 @@ async fn main() {
     join_parallel((0..10).map(|_| foo())).await;
     println!("join_parallel: {:?}", t.elapsed());
 }
-
-

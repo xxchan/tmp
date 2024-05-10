@@ -9,7 +9,7 @@ pub fn sleep() {
 // What is `__stack_pointer`?
 #[no_mangle]
 pub fn a_lot_of_stack_memory() -> usize {
-    // one page is 64KiB (65536) 
+    // one page is 64KiB (65536)
     // let v = [0u8; 65536 * 100];
     1
 }

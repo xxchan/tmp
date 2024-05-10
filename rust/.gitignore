@@ -3,3 +3,5 @@
 
 *.wasm
 *.wat
+
+kafka.properties

@@ -1,3 +1,6 @@
 {
     "git.branchProtectionPrompt": "alwaysCommit",
+    "rust-analyzer.linkedProjects": [
+        "./rust/kafka/Cargo.toml"
+    ],
 }

@@ -22,3 +22,8 @@ docker run --network=host -p 8080:8080 -e KAFKA_BROKERS=$RPK_BROKERS docker.redp
 
 http://localhost:8080/
 
+## Check consumer group
+
+```
+./bin/kafka-consumer-groups.sh --bootstrap-server <bootstrap server> --describe --all-groups --command-config <properties file> --timeout 10000
+```

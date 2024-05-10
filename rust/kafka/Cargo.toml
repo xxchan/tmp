@@ -1,0 +1,30 @@
+[package]
+name = "rust-tmp"
+version = "0.1.114514"
+edition = "2021"
+
+[dependencies]
+rdkafka = { version = "0.36.0", features = ["ssl"] }
+clap = { version = "4", features = ["cargo", "derive"] }
+
+
+dotenv = "0.15.0"
+env_logger = "0.11.0"
+expect-test = "1.4.1"
+futures = "0.3.27"
+anyhow = "1.0"
+log = "0.4.17"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+itertools = "0"
+
+[dev-dependencies]
+
+
+[workspace.lints.rust]
+dead_code = "allow"
+
+[lints]
+workspace = true

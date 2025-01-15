@@ -7,7 +7,7 @@ rustflags = [
 
 [target.aarch64-apple-darwin]
 rustflags = [
-    "-Clink-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"
+    "-Clink-arg=-fuse-ld=lld"
 ]
 
 # Flags for all targets.

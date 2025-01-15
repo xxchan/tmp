@@ -4,7 +4,10 @@ version = "0.1.114514"
 edition = "2021"
 
 [dependencies]
-rdkafka = { version = "0.36.0", features = ["ssl"] }
+# rdkafka = { version = "0.36.0", features = ["ssl"] }
+rdkafka = { package = "madsim-rdkafka", version = "0.4.1", features = [
+    "cmake-build",
+] }
 clap = { version = "4", features = ["cargo", "derive"] }
 
 

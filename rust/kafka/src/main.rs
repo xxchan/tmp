@@ -63,9 +63,9 @@ async fn consume_and_print(mode: ConsumerMode) -> anyhow::Result<()> {
         )
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
-        .set("enable.auto.commit", "false")
-        // earliest
-        .set("auto.offset.reset", "earliest");
+        .set("enable.auto.commit", "true")
+        .set("auto.offset.reset", "smallest")
+        .set("isolation.level", "read_committed");
     // set SSL
     if std::env::var(&"USE_SASL").is_ok() {
         config
@@ -76,10 +76,12 @@ async fn consume_and_print(mode: ConsumerMode) -> anyhow::Result<()> {
     }
     let consumer: LoggingConsumer = config
         .create_with_context(context)
+        .await
         .expect("Consumer creation failed");
 
     let metadata = consumer
         .fetch_metadata(Some(TOPIC), Duration::from_secs(10))
+        .await
         .unwrap();
     warn!(
         "metadata {}",
@@ -140,8 +142,20 @@ async fn consume_and_print(mode: ConsumerMode) -> anyhow::Result<()> {
             // tpl.set_partition_offset("topic2", 1, Offset::Offset(3))
             //     .unwrap();
             consumer.assign(&tpl).unwrap();
+            let assn = consumer.assignment().unwrap();
+            consumer.assign(&tpl).unwrap();
+
+            println!("assignment: {:?}", assn);
         }
     }
+
+    // consumer
+    //     .seek(TOPIC, 0, Offset::OffsetTail(2), Duration::from_millis(1000))
+    //     .unwrap();
+
+    // wait for enter key
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
 
     loop {
         warn!("loop");
@@ -190,6 +204,7 @@ async fn produce() {
         .set("sasl.username", std::env::var(&"USERNAME").unwrap())
         .set("sasl.password", std::env::var(&"PASSWORD").unwrap())
         .create()
+        .await
         .expect("Producer creation error");
 
     // This loop is non blocking: all messages will be sent one after the other, without waiting

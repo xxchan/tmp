@@ -4,7 +4,7 @@ version = "0.1.114514"
 edition = "2021"
 
 [workspace]
-members = ["src/utils", "src/wasm-component", "src/wasm-evil"]
+members = ["src/utils"]
 
 [profile.release]
 debug = 1
@@ -23,11 +23,11 @@ tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 itertools = "0"
 
-arrow-array = "40"
-arrow-flight = "40"
-arrow-ipc = "40"
-arrow-schema = "40"
-arrow-select = "40"
+# arrow-array = "40"
+# arrow-flight = "40"
+# arrow-ipc = "40"
+# arrow-schema = "40"
+# arrow-select = "40"
 
 async-trait = "0.1.68"
 
@@ -63,6 +63,11 @@ opentelemetry-stdout = { version = "0.2", features = ["trace"] }
 thiserror-ext = "0.1.0"
 thiserror = "1"
 jni = "0.21.1"
+
+google-cloud-pubsub = "0.25"
+google-cloud-googleapis = { version = "0.13", features = ["pubsub"] }
+
+pulsar = "6.3"
 
 [dev-dependencies]
 criterion = { version = "0.5" }

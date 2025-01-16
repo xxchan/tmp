@@ -74,10 +74,12 @@ async fn consume_and_print(mode: ConsumerMode) -> anyhow::Result<()> {
             .set("sasl.username", std::env::var(&"USERNAME").unwrap())
             .set("sasl.password", std::env::var(&"PASSWORD").unwrap());
     }
+    tracing::info!("consumer creation start");
     let consumer: LoggingConsumer = config
         .create_with_context(context)
         .await
         .expect("Consumer creation failed");
+    tracing::info!("consumer created");
 
     let metadata = consumer
         .fetch_metadata(Some(TOPIC), Duration::from_secs(10))

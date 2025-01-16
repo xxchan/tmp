@@ -1,5 +1,5 @@
 [package]
-name = "rust-tmp"
+name = "kafka-tmp"
 version = "0.1.114514"
 edition = "2021"
 
@@ -7,6 +7,7 @@ edition = "2021"
 # rdkafka = { version = "0.36.0", features = ["ssl"] }
 rdkafka = { package = "madsim-rdkafka", version = "0.4.1", features = [
     "cmake-build",
+    "ssl",
 ] }
 clap = { version = "4", features = ["cargo", "derive"] }
 
@@ -17,7 +18,7 @@ expect-test = "1.4.1"
 futures = "0.3.27"
 anyhow = "1.0"
 log = "0.4.17"
-tracing = "0.1.37"
+tracing = { version = "0.1.37", features = ["log"] }
 tracing-subscriber = "0.3.17"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["codec"] }
